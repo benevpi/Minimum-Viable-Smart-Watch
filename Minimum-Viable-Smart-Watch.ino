@@ -15,6 +15,13 @@
 #define YELLOW 0xFFE0
 #define WHITE 0xFFFF
 
+//Learnings
+//Things you absolutely have to do to make the battery last
+// * reduce clock speed
+// * lower the back light brightness
+// * not have serial output running
+// * have an auto-power off on the display (3 or 4 seconds seems good)
+
 
 // ToDO
 //weather info coming through -- could do something more fine grained like the weather colour lines on the weather display
