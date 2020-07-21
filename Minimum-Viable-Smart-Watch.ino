@@ -15,6 +15,7 @@
 #define YELLOW 0xFFE0
 #define WHITE 0xFFFF
 
+
 // ToDO
 //weather info coming through -- could do something more fine grained like the weather colour lines on the weather display
 
@@ -105,7 +106,9 @@ int last_on = 0;
 int connectToWiFi(const char * ssid, const char * pwd)
 {
 
+#ifdef debug
   Serial.println("Connecting to WiFi network: " + String(ssid));
+#endif
 
   WiFi.begin(ssid, pwd);
 
@@ -114,15 +117,18 @@ int connectToWiFi(const char * ssid, const char * pwd)
   while (WiFi.status() != WL_CONNECTED) 
   {
     delay(500);
+#ifdef debug
     Serial.print(".");
+#endif
     counter++;
     if (counter > 120) { return 2;}
   }
-  
+#ifdef debug  
   Serial.println();
   Serial.println("WiFi connected!");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+#endif
   return 0;
 }
 
@@ -130,16 +136,21 @@ void get_forecast() {
   setCpuFrequencyMhz(80);
   connectToWiFi(networkName, networkPswd);
      // printLine();
+#ifdef debug
   Serial.println("Connecting to domain: " + String(host));
-
+#endif
   // Use WiFiClient class to create TCP connections
   WiFiClient client;
   if (!client.connect(host, port))
   {
+#ifdef debug
     Serial.println("connection failed");
+#endif
     return;
   }
+#ifdef debug
   Serial.println("Connected!");
+#endif
 
   // This will send the request to the server
   client.print((String)"GET " + url + "  HTTP/1.1\r\n" +
@@ -150,7 +161,9 @@ void get_forecast() {
   {
     if (millis() - timeout > 5000) 
     {
+#ifdef debug
       Serial.println(">>> Client Timeout !");
+#endif
       client.stop();
       setCpuFrequencyMhz(10);
       return;
@@ -161,9 +174,10 @@ void get_forecast() {
  while (client.available()) { 
    line = client.readStringUntil('\r');
    if (line.indexOf('{')>=0) {
+#ifdef debug
    Serial.println(line); 
    Serial.println("parsingValues"); 
-   
+#endif
    //create a json buffer where to store the json data 
 
    DynamicJsonDocument json_doc(60000);
@@ -171,13 +185,17 @@ void get_forecast() {
    DeserializationError json_error = deserializeJson(json_doc, line);
 
    if (json_error) { 
+#ifdef debug
      Serial.println("parseing failed");
      Serial.println(json_error.c_str());
+#endif
      
      //return; 
    } 
    else {
+#ifdef debug
     Serial.println("success");
+#endif
 
     //description - 
     weather1 = (const char*)json_doc["daily"][0]["weather"][0]["description"];
@@ -185,12 +203,13 @@ void get_forecast() {
     weather3 = "wind: " + json_doc["daily"][0]["wind_speed"].as<String>();
     weather4 = "tmrw: " + json_doc["daily"][1]["weather"][0]["description"].as<String>().substring(0,12);
     weather5 = json_doc["daily"][1]["temp"]["min"].as<String>() + " - " + json_doc["daily"][1]["temp"]["max"].as<String>() + "C";
+#ifdef debug
     Serial.println(weather1);
     Serial.println(weather2);
     Serial.println(weather3);
     Serial.println(weather4);
     Serial.println(weather5);
-
+#endif
     //turn off wifi
     WiFi.mode(WIFI_OFF);
     
@@ -235,7 +254,9 @@ void low_energy() {
 void setup()
 {
     //may need to cut this to save power later
+#ifdef debug
     Serial.begin(115200);
+#endif
 
     //create the proper openweather URL
     url=url+appid;
@@ -293,6 +314,7 @@ void loop()
         irq = 0;
 
         // don't fully understand why this is necessary to get the step counter, but copied from the example and doesn't work if it's removed
+        // could this be moved to low-energy, or only done if the screen is on? Feel like it might be sapping power.
         bool  rlst;
         do {
             rlst =  ttgo->bma->readInterrupt();
@@ -314,6 +336,7 @@ void loop()
         ttgo->power->clearIRQ();
     }
 
+    //let's factor the power bit out and only di it if the screen is on
     ttgo->tft->setTextColor(GREEN, TFT_BLACK);
     if (charging) {
       snprintf(buf, sizeof(buf), "Battery: %u power", ttgo->power->getBattPercentage());
@@ -326,6 +349,7 @@ void loop()
     ttgo->tft->setTextColor(WHITE, TFT_BLACK);
     snprintf(buf, sizeof(buf), "%s", ttgo->rtc->formatDateTime());
     ttgo->tft->drawString(buf, 1, 10, 7);
+    // end bit to cut if screen not on here
 
     if(toggle_screen & millis() > (last_on + sleep_time)) { low_energy(); } // turn screen off after set number of seconds
 
