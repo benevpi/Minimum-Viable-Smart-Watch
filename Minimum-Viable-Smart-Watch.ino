@@ -83,8 +83,24 @@ String url= "/data/2.5/onecall?lat=51.45452&lon=-2.5879&exclude=current,minutely
 const char * host = "api.openweathermap.org";
 const int port = 80;
 
+//set up different screens
+const int num_screens = 2;
+int screen = 0;
+int current_screen = 0;
+
+//each screen has two functions -- static and dynamic.
+//static is drawn when the screen is shown, dynamic updates with each clock update
+//for my use case, the dynamic screen will probably be the same for every screen, but that's not necessarily the case for all.
+int (*screen_static[num_screens])();
+int (*screen_dynamic[num_screens])();
 
 char buf[128];
+char battery_chars[128];
+char time_chars[128];
+
+//globals to hold data for display
+String time_string = "";
+String battery_string = "";
 
 //weather lines
 String weather1 = "";
@@ -109,6 +125,44 @@ int last_on = 0;
 //chance of rain
 //wind speed
 //uv index
+
+// Let's do the  screens here
+int main_clock_dynamic() {
+  ttgo->tft->setTextColor(GREEN, TFT_BLACK);
+  ttgo->tft->drawString(battery_chars, 22, 80, 4);
+  ttgo->tft->setTextColor(WHITE, TFT_BLACK);
+  ttgo->tft->drawString(time_chars, 1, 10, 7);
+}
+
+int screen1_static() {
+          //update step counter only when the screen is refreshed
+        ttgo->tft->setTextColor(GREEN, TFT_BLACK);
+        snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
+        ttgo->tft->drawString(buf, 22, 60, 4);
+        ttgo->tft->setTextColor(BLUE, TFT_BLACK);
+        ttgo->tft->drawString(weather1, 22, 110, 4); // description
+        ttgo->tft->drawString(weather2, 22, 135, 4); // temp
+        ttgo->tft->drawString(weather3, 22, 160, 4); // wind
+        ttgo->tft->setTextColor(MAGENTA, TFT_BLACK);       
+        ttgo->tft->drawString(weather4, 22, 185, 4); // tomorrow
+        ttgo->tft->drawString(weather5, 22, 210, 4); // tomorrow
+}
+
+int screen2_static() {
+          //update step counter only when the screen is refreshed
+        ttgo->tft->setTextColor(GREEN, TFT_BLACK);
+        snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
+        ttgo->tft->drawString(buf, 22, 60, 4);
+        ttgo->tft->setTextColor(BLUE, TFT_BLACK);
+        ttgo->tft->drawString("screen 2 text    ", 22, 110, 4); // description
+        ttgo->tft->drawString("screen 2 text    ", 22, 135, 4); // temp
+        ttgo->tft->drawString("screen 2 text    ", 22, 160, 4); // wind
+        ttgo->tft->setTextColor(MAGENTA, TFT_BLACK);       
+        ttgo->tft->drawString("screen 2 text    ", 22, 185, 4); // tomorrow
+        ttgo->tft->drawString("screen 2 text    ", 22, 210, 4); // tomorrow
+}
+
+//end screens
 
 int connectToWiFi(const char * ssid, const char * pwd)
 {
@@ -244,6 +298,7 @@ void low_energy() {
         last_on = millis();
 
         //update step counter only when the screen is refreshed
+        /**
         ttgo->tft->setTextColor(GREEN, TFT_BLACK);
         snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
         ttgo->tft->drawString(buf, 22, 60, 4);
@@ -254,6 +309,8 @@ void low_energy() {
         ttgo->tft->setTextColor(MAGENTA, TFT_BLACK);       
         ttgo->tft->drawString(weather4, 22, 185, 4); // tomorrow
         ttgo->tft->drawString(weather5, 22, 210, 4); // tomorrow
+        **/
+        (*screen_static[current_screen])();
         
     }
 }
@@ -268,7 +325,13 @@ void setup()
     //create the proper openweather URL
     url=url+appid;
     
+    //set up screens
+    screen_dynamic[0] = main_clock_dynamic;
+    screen_dynamic[1] = main_clock_dynamic;
 
+    screen_static[0] = screen1_static;
+    screen_static[1] = screen2_static;
+    //end set up screens
     
     ttgo = TTGOClass::getWatch();
     ttgo->begin();
@@ -310,6 +373,7 @@ void setup()
     last_on = millis();
 
     //let's just put this here for testing
+    //should maybe be wrapped in something for checking battery level / 
     get_forecast();
 
 }
@@ -344,25 +408,39 @@ void loop()
     }
 
     //let's factor the power bit out and only di it if the screen is on
-    ttgo->tft->setTextColor(GREEN, TFT_BLACK);
+    //ttgo->tft->setTextColor(GREEN, TFT_BLACK);
     if (charging) {
-      snprintf(buf, sizeof(buf), "Battery: %u power", ttgo->power->getBattPercentage());
+      snprintf(battery_chars, sizeof(battery_chars), "Battery: %u power", ttgo->power->getBattPercentage());
     }
     else {
-      snprintf(buf, sizeof(buf), "Battery: %u                ", ttgo->power->getBattPercentage());
+      snprintf(battery_chars, sizeof(battery_chars), "Battery: %u                ", ttgo->power->getBattPercentage());
     }
-    ttgo->tft->drawString(buf, 22, 80, 4);
+    //ttgo->tft->drawString(buf, 22, 80, 4); moved to dynamic function
 
-    ttgo->tft->setTextColor(WHITE, TFT_BLACK);
-    snprintf(buf, sizeof(buf), "%s", ttgo->rtc->formatDateTime());
-    ttgo->tft->drawString(buf, 1, 10, 7);
+    //ttgo->tft->setTextColor(WHITE, TFT_BLACK);
+    snprintf(time_chars, sizeof(time_chars), "%s", ttgo->rtc->formatDateTime());
+    //ttgo->tft->drawString(buf, 1, 10, 7);
     // end bit to cut if screen not on here
+
+    //draw dynamic part of the screen
+    (*screen_dynamic[current_screen])();
 
     if(toggle_screen & millis() > (last_on + sleep_time)) { low_energy(); } // turn screen off after set number of seconds
 
     //get weather if both charging and we don't already have it today
     if (charging and forecast == false) {
       get_forecast();
+    }
+
+    //touch sensing
+    //doesn't seem to need a debounce, the loop delay is enough
+    // may want it to reset the screen timeout
+    int16_t x;
+    int16_t y;
+     if (toggle_screen && ttgo->getTouch(x, y)) {
+        current_screen++;
+        if (current_screen >= num_screens) { current_screen=0;}
+        (*screen_static[current_screen])();
     }
    
     delay(300);
