@@ -21,9 +21,16 @@
 // * lower the back light brightness
 // * not have serial output running
 // * have an auto-power off on the display (3 or 4 seconds seems good)
+// * Dark colours not readable outside, light ones are
 
 
 // ToDO
+
+//useful functions of the bma423 that could be of use:
+// getActicity (detects walking and running and stationary)
+// isDoubleClick
+// isTilt
+
 //weather info coming through -- could do something more fine grained like the weather colour lines on the weather display
 
 //some descriptions of weather too long -- overcast clouds, for example.
@@ -437,11 +444,14 @@ void loop()
     // may want it to reset the screen timeout
     int16_t x;
     int16_t y;
+    //I think this && is lazy, so we shouldn't be doing the getTouch if the screen is off?
+    //There is also the touched function
      if (toggle_screen && ttgo->getTouch(x, y)) {
         current_screen++;
         if (current_screen >= num_screens) { current_screen=0;}
         (*screen_static[current_screen])();
     }
-   
+
+    //could shorten the delay when the display is active to make the touch interface more responsive.
     delay(300);
 }
