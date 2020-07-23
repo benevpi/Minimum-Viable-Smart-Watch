@@ -26,10 +26,21 @@
 
 // ToDO
 
+//tilt to open and activity detect now working
+// note that tilt to start expects the watch to be on the left wrist. Not sure if it's possible to re-map the axies to make it work on the right wrist.
+// Also, there's a delay in the tilt that is a little annoying. Reducing the 300 ms wait maybe?
+//Anyway, let's see how it affects battery consumption before worrying too much.
+
+//looks like there's been some changes to the BMA class need to fetch the latest version to use the activity sensor
+
 //useful functions of the bma423 that could be of use:
 // getActicity (detects walking and running and stationary)
 // isDoubleClick
-// isTilt
+
+//this one doesn't seem to be working? needs further investigation
+// isTilt -- could use this to turn on the watch screen. see example here: https://github.com/Xinyuan-LilyGO/TTGO_TWatch_Library/blob/8f95c5ffaf5bdc208fe10783e686d937df62591c/examples/BasicUnit/BMA423_Feature/BMA423_Feature.ino
+
+//would be cool to save activity data to a CSV file, then have a web server that runs when the watch is plugged in that serves up that file (and maybe visualises it)
 
 //weather info coming through -- could do something more fine grained like the weather colour lines on the weather display
 
@@ -91,7 +102,7 @@ const char * host = "api.openweathermap.org";
 const int port = 80;
 
 //set up different screens
-const int num_screens = 2;
+const int num_screens = 3;
 int screen = 0;
 int current_screen = 0;
 
@@ -109,12 +120,20 @@ char time_chars[128];
 String time_string = "";
 String battery_string = "";
 
+String current_activity = "";
+
 //weather lines
 String weather1 = "";
 String weather2 = "";
 String weather3 = "";
 String weather4 = "";
 String weather5 = "";
+
+String weather6 = "";
+String weather7 = "";
+String weather8 = "";
+String weather9 = "";
+String weather10 = "";
 
 
 bool irq = false;
@@ -142,11 +161,12 @@ int main_clock_dynamic() {
 }
 
 int screen1_static() {
+        ttgo->tft->fillScreen(TFT_BLACK);
           //update step counter only when the screen is refreshed
         ttgo->tft->setTextColor(GREEN, TFT_BLACK);
         snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
         ttgo->tft->drawString(buf, 22, 60, 4);
-        ttgo->tft->setTextColor(BLUE, TFT_BLACK);
+        ttgo->tft->setTextColor(CYAN, TFT_BLACK);
         ttgo->tft->drawString(weather1, 22, 110, 4); // description
         ttgo->tft->drawString(weather2, 22, 135, 4); // temp
         ttgo->tft->drawString(weather3, 22, 160, 4); // wind
@@ -156,17 +176,34 @@ int screen1_static() {
 }
 
 int screen2_static() {
+         ttgo->tft->fillScreen(TFT_BLACK);
           //update step counter only when the screen is refreshed
         ttgo->tft->setTextColor(GREEN, TFT_BLACK);
         snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
         ttgo->tft->drawString(buf, 22, 60, 4);
-        ttgo->tft->setTextColor(BLUE, TFT_BLACK);
-        ttgo->tft->drawString("screen 2 text    ", 22, 110, 4); // description
-        ttgo->tft->drawString("screen 2 text    ", 22, 135, 4); // temp
-        ttgo->tft->drawString("screen 2 text    ", 22, 160, 4); // wind
+        ttgo->tft->setTextColor(CYAN, TFT_BLACK);
+        ttgo->tft->drawString(weather6, 22, 110, 4); // description
+        ttgo->tft->drawString(weather7, 22, 135, 4); // temp
+
         ttgo->tft->setTextColor(MAGENTA, TFT_BLACK);       
-        ttgo->tft->drawString("screen 2 text    ", 22, 185, 4); // tomorrow
-        ttgo->tft->drawString("screen 2 text    ", 22, 210, 4); // tomorrow
+        ttgo->tft->drawString(weather8, 22, 185, 4); // tomorrow
+        ttgo->tft->drawString(weather9, 22, 210, 4); // tomorrow
+}
+
+int screen3_static() {
+         ttgo->tft->fillScreen(TFT_BLACK);
+          //update step counter only when the screen is refreshed
+        ttgo->tft->setTextColor(GREEN, TFT_BLACK);
+        snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
+        ttgo->tft->drawString(buf, 22, 60, 4);
+        ttgo->tft->setTextColor(CYAN, TFT_BLACK);
+        ttgo->tft->drawString("Debug data", 22, 110, 4); 
+        snprintf(buf, sizeof(buf), "activity: %s", ttgo->bma->getActivity());
+        ttgo->tft->drawString(buf, 22, 135, 4); // current activity
+
+        ttgo->tft->setTextColor(MAGENTA, TFT_BLACK);       
+        ttgo->tft->drawString("", 22, 185, 4); // tomorrow
+        ttgo->tft->drawString("", 22, 210, 4); // tomorrow
 }
 
 //end screens
@@ -271,6 +308,12 @@ void get_forecast() {
     weather3 = "wind: " + json_doc["daily"][0]["wind_speed"].as<String>();
     weather4 = "tmrw: " + json_doc["daily"][1]["weather"][0]["description"].as<String>().substring(0,12);
     weather5 = json_doc["daily"][1]["temp"]["min"].as<String>() + " - " + json_doc["daily"][1]["temp"]["max"].as<String>() + "C";
+
+    weather6 = "day 2: " + json_doc["daily"][2]["weather"][0]["description"].as<String>().substring(0,12);
+    weather7 = json_doc["daily"][2]["temp"]["min"].as<String>() + " - " + json_doc["daily"][1]["temp"]["max"].as<String>() + "C";
+    weather8 = "day 3: " + json_doc["daily"][3]["weather"][0]["description"].as<String>().substring(0,12);
+    weather9 = json_doc["daily"][3]["temp"]["min"].as<String>() + " - " + json_doc["daily"][1]["temp"]["max"].as<String>() + "C";
+
 #ifdef debug
     Serial.println(weather1);
     Serial.println(weather2);
@@ -294,6 +337,7 @@ void low_energy() {
     if (toggle_screen) {
         ttgo->closeBL();
         ttgo->bma->enableStepCountInterrupt(false);
+        
         ttgo->displaySleep();
         toggle_screen = false;
         
@@ -335,9 +379,11 @@ void setup()
     //set up screens
     screen_dynamic[0] = main_clock_dynamic;
     screen_dynamic[1] = main_clock_dynamic;
+    screen_dynamic[2] = main_clock_dynamic;
 
     screen_static[0] = screen1_static;
     screen_static[1] = screen2_static;
+    screen_static[2] = screen3_static;
     //end set up screens
     
     ttgo = TTGOClass::getWatch();
@@ -358,7 +404,14 @@ void setup()
 
     
     ttgo->bma->begin();
-    ttgo->bma->attachInterrupt();
+    ttgo->bma->attachInterrupt(); // not sure about this? looks like this does all the config as well.
+
+     ttgo->bma->enableFeature(BMA423_ACTIVITY, true);
+     ttgo->bma->enableActivityInterrupt(true);
+
+
+    //ttgo->bma->enableTiltInterrupt(true); // nont too sure what the true and false refer to. Taken from sample code
+    //ttgo->bma->enableAccel(); // not sure if this is needed
     
 
 
@@ -397,6 +450,11 @@ void loop()
         do {
             rlst =  ttgo->bma->readInterrupt();
         } while (!rlst);
+
+        //nnot working, don't know whyy?
+        if (!toggle_screen && ttgo->bma->isTilt()) {
+            low_energy();
+        }
         
         ttgo->power->readIRQ();
 
@@ -448,6 +506,7 @@ void loop()
     //There is also the touched function
      if (toggle_screen && ttgo->getTouch(x, y)) {
         current_screen++;
+        last_on = millis();
         if (current_screen >= num_screens) { current_screen=0;}
         (*screen_static[current_screen])();
     }
