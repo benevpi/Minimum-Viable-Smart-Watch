@@ -15,6 +15,9 @@
 #define YELLOW 0xFFE0
 #define WHITE 0xFFFF
 
+//
+#define debug TRUE
+
 //Learnings
 //Things you absolutely have to do to make the battery last
 // * reduce clock speed
@@ -25,6 +28,15 @@
 
 
 // ToDO
+
+//power useage seems to be up. Things to try
+// turning the display fully off: (from https://github.com/Xinyuan-LilyGO/TTGO_TWatch_Library/blob/master/examples/BasicUnit/WakeupFormSensor/WakeupFormSensor.ino)
+//    watch->powerOff();
+    // LDO2 is used to power the display, and LDO2 can be turned off if needed
+    // power->setPowerOutPut(AXP202_LDO2, false);
+//also, configure wakeup from both button and tilt (see same example above)
+//note, this wipes the memory, so will need to store the weather and steps in the RTC memory if space
+//probably not possible.
 
 //tilt to open and activity detect now working
 // note that tilt to start expects the watch to be on the left wrist. Not sure if it's possible to re-map the axies to make it work on the right wrist.
@@ -91,7 +103,7 @@ TTGOClass *ttgo;
 
 //config opitions
 int sleep_time = 4000; // 4 or five seconds needed for weather
-int brightness = 50; // see how big an effect this has on both battery life and visibility outdoors
+int brightness = 30; // see how big an effect this has on both battery life and visibility outdoors
 
 //loop delay
 
@@ -226,7 +238,7 @@ int connectToWiFi(const char * ssid, const char * pwd)
     Serial.print(".");
 #endif
     counter++;
-    if (counter > 120) { return 2;}
+    if (counter > 120) { return 2;} // try to connect to the network for one minute.
   }
 #ifdef debug  
   Serial.println();
@@ -239,7 +251,7 @@ int connectToWiFi(const char * ssid, const char * pwd)
 
 void get_forecast() {
   setCpuFrequencyMhz(80);
-  connectToWiFi(networkName, networkPswd);
+  if (connectToWiFi(networkName, networkPswd) == 2) {setCpuFrequencyMhz(10); WiFi.mode(WIFI_OFF); return;  } //end the function if can't connect to wifi
      // printLine();
 #ifdef debug
   Serial.println("Connecting to domain: " + String(host));
@@ -347,20 +359,6 @@ void low_energy() {
         ttgo->bma->enableStepCountInterrupt();
         toggle_screen=true;
         last_on = millis();
-
-        //update step counter only when the screen is refreshed
-        /**
-        ttgo->tft->setTextColor(GREEN, TFT_BLACK);
-        snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
-        ttgo->tft->drawString(buf, 22, 60, 4);
-        ttgo->tft->setTextColor(BLUE, TFT_BLACK);
-        ttgo->tft->drawString(weather1, 22, 110, 4); // description
-        ttgo->tft->drawString(weather2, 22, 135, 4); // temp
-        ttgo->tft->drawString(weather3, 22, 160, 4); // wind
-        ttgo->tft->setTextColor(MAGENTA, TFT_BLACK);       
-        ttgo->tft->drawString(weather4, 22, 185, 4); // tomorrow
-        ttgo->tft->drawString(weather5, 22, 210, 4); // tomorrow
-        **/
         (*screen_static[current_screen])();
         
     }
@@ -488,7 +486,10 @@ void loop()
     // end bit to cut if screen not on here
 
     //draw dynamic part of the screen
-    (*screen_dynamic[current_screen])();
+    //only need to do this if the screen is turned on
+    if(toggle_screen) {
+      (*screen_dynamic[current_screen])();
+    }
 
     if(toggle_screen & millis() > (last_on + sleep_time)) { low_energy(); } // turn screen off after set number of seconds
 
