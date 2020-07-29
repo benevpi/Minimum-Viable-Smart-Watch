@@ -31,7 +31,7 @@ const char * host = "api.openweathermap.org";
 const int port = 80;
 
 //set up different screens
-const int num_screens = 4;
+const int num_screens = 5;
 int screen = 0;
 int current_screen = 0;
 
@@ -89,6 +89,10 @@ int tap_weather(){
   get_forecast();
 }
 
+int tap_steps(){
+  ttgo->bma->resetStepCounter();
+}
+
 int screen1_static() {
         ttgo->tft->fillScreen(BLACK);
           //update step counter only when the screen is refreshed
@@ -103,17 +107,6 @@ int screen1_static() {
         ttgo->tft->drawString(weather4, 22, 185, 4); // tomorrow
         ttgo->tft->drawString(weather5, 22, 210, 4); // tomorrow
 }
-
-int screen4_static() {
-        ttgo->tft->fillScreen(BLACK);
-          //update step counter only when the screen is refreshed
-        ttgo->tft->setTextColor(GREEN, BLACK);
-        snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
-        ttgo->tft->drawString(buf, 22, 60, 4);
-        ttgo->tft->setTextColor(CYAN, BLACK);
-        ttgo->tft->drawString("tap to update weather", 22, 110, 4);
-}
-
 
 int screen2_static() {
          ttgo->tft->fillScreen(BLACK);
@@ -146,6 +139,25 @@ int screen3_static() {
         ttgo->tft->drawString("", 22, 210, 4); // tomorrow
 }
 
+int screen4_static() {
+        ttgo->tft->fillScreen(BLACK);
+          //update step counter only when the screen is refreshed
+        ttgo->tft->setTextColor(GREEN, BLACK);
+        snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
+        ttgo->tft->drawString(buf, 22, 60, 4);
+        ttgo->tft->setTextColor(CYAN, BLACK);
+        ttgo->tft->drawString("tap to update weather", 22, 110, 4);
+}
+
+int screen5_static() {
+        ttgo->tft->fillScreen(BLACK);
+          //update step counter only when the screen is refreshed
+        ttgo->tft->setTextColor(GREEN, BLACK);
+        snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
+        ttgo->tft->drawString(buf, 22, 60, 4);
+        ttgo->tft->setTextColor(CYAN, BLACK);
+        ttgo->tft->drawString("tap to reset steps", 22, 110, 4);
+}
 //end screens
 
 
@@ -308,16 +320,19 @@ void setup()
     screen_dynamic[1] = main_clock_dynamic;
     screen_dynamic[2] = main_clock_dynamic;
     screen_dynamic[3] = main_clock_dynamic;
+    screen_dynamic[4] = main_clock_dynamic;
 
     screen_static[0] = screen1_static;
     screen_static[1] = screen2_static;
     screen_static[2] = screen3_static;
     screen_static[3] = screen4_static;
+    screen_static[4] = screen5_static;
 
     screen_tap[0] = tap_nothing;
     screen_tap[1] = tap_nothing;
     screen_tap[2] = tap_nothing;
     screen_tap[3] = tap_weather;
+    screen_tap[4] = tap_steps;
     //end set up screens
     
     ttgo = TTGOClass::getWatch();
