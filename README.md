@@ -2,7 +2,9 @@
  A sample firmware for playing around with the Lilygo T-Watch 2020
  
 # using this code
-It's in a pretty high state of flux at the moment. I try to make sure that the latest version here always works (at least compiles and runs), but no promises
+It's in a pretty high state of flux at the moment. I try to make sure that the latest version here always works (at least compiles and runs), but no promises.
+
+In order to compile it, you'll need the board added to your Arduino IDE, official Arduino t-watch library (https://github.com/Xinyuan-LilyGO/TTGO_TWatch_Library) installed. Also, ArduinoJSON. I think that's all the requirements
 
 # secrets
 You'll need a secrets.h file with your personal secret data (wifi logins and open weather app id at the moment). See ex-secrets.h for details
@@ -21,11 +23,18 @@ I don't think it's possible to use light and deep sleep without vastly complicat
 
 The BMA class has changed recently and is not versioned. Need to have the latest version in order to build
 
-#Stuff implemented
+# Stuff implemented
 * tilt to turn on
 * multiple screens that you can switch with a touch (note, there's a delay in this, so you have to hold your finger on the screen. not ideal, but also OK and not on my list of things to fix short-term)
 
-#Structure
+# Stuff to be implemented
+* double tap detection
+* saving data to SPIFFS
+* uploading data to online storage
+* inactivity detection (& buzz?)
+* time spent in different activities
+
+# Structure
 Each 'screen' on the phone has two functions, static which is drawn each time the screen is turned on, and dynamic which is drawn each second. This may be expanded to a touch handler and a double click handler. Not implemented these yet. Pointers to the screen functions are held in two arrays that are set up in Setup():
 
 ```c
@@ -39,7 +48,7 @@ Each 'screen' on the phone has two functions, static which is drawn each time th
  ```
 
 
-# TODO
+# comments rippedo out of code
 
 //power useage seems to be up. Things to try
 // turning the display fully off: (from https://github.com/Xinyuan-LilyGO/TTGO_TWatch_Library/blob/master/examples/BasicUnit/WakeupFormSensor/WakeupFormSensor.ino)
