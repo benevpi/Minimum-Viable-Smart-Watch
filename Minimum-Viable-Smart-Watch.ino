@@ -15,6 +15,7 @@
 #define YELLOW 0xFFE0
 #define WHITE 0xFFFF
 
+
 TTGOClass *ttgo;
 
 //config opitions
@@ -30,7 +31,7 @@ const char * host = "api.openweathermap.org";
 const int port = 80;
 
 //set up different screens
-const int num_screens = 3;
+const int num_screens = 4;
 int screen = 0;
 int current_screen = 0;
 
@@ -39,6 +40,7 @@ int current_screen = 0;
 //for my use case, the dynamic screen will probably be the same for every screen, but that's not necessarily the case for all.
 int (*screen_static[num_screens])();
 int (*screen_dynamic[num_screens])();
+int (*screen_tap[num_screens])();
 
 char buf[128];
 char battery_chars[128];
@@ -79,6 +81,14 @@ int main_clock_dynamic() {
   ttgo->tft->drawString(time_chars, 1, 10, 7);
 }
 
+int tap_nothing() {
+  return 0;
+}
+
+int tap_weather(){
+  get_forecast();
+}
+
 int screen1_static() {
         ttgo->tft->fillScreen(BLACK);
           //update step counter only when the screen is refreshed
@@ -92,6 +102,16 @@ int screen1_static() {
         ttgo->tft->setTextColor(YELLOW, BLACK);       
         ttgo->tft->drawString(weather4, 22, 185, 4); // tomorrow
         ttgo->tft->drawString(weather5, 22, 210, 4); // tomorrow
+}
+
+int screen4_static() {
+        ttgo->tft->fillScreen(BLACK);
+          //update step counter only when the screen is refreshed
+        ttgo->tft->setTextColor(GREEN, BLACK);
+        snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
+        ttgo->tft->drawString(buf, 22, 60, 4);
+        ttgo->tft->setTextColor(CYAN, BLACK);
+        ttgo->tft->drawString("tap to update weather", 22, 110, 4);
 }
 
 
@@ -287,10 +307,17 @@ void setup()
     screen_dynamic[0] = main_clock_dynamic;
     screen_dynamic[1] = main_clock_dynamic;
     screen_dynamic[2] = main_clock_dynamic;
+    screen_dynamic[3] = main_clock_dynamic;
 
     screen_static[0] = screen1_static;
     screen_static[1] = screen2_static;
     screen_static[2] = screen3_static;
+    screen_static[3] = screen4_static;
+
+    screen_tap[0] = tap_nothing;
+    screen_tap[1] = tap_nothing;
+    screen_tap[2] = tap_nothing;
+    screen_tap[3] = tap_weather;
     //end set up screens
     
     ttgo = TTGOClass::getWatch();
@@ -300,6 +327,8 @@ void setup()
     setCpuFrequencyMhz(10);
     ttgo->openBL();
     ttgo->bl->adjust(brightness);
+
+    ttgo->motor_begin();
 
     pinMode(BMA423_INT1, INPUT);
 
@@ -314,7 +343,12 @@ void setup()
     ttgo->bma->attachInterrupt(); // not sure about this? looks like this does all the config as well.
 
      ttgo->bma->enableFeature(BMA423_ACTIVITY, true);
+     ttgo->bma->enableFeature(BMA423_WAKEUP, true);
      ttgo->bma->enableActivityInterrupt(true);
+
+     //needed
+     ttgo->bma->enableWakeupInterrupt();
+     
 
 
     //ttgo->bma->enableTiltInterrupt(true); // nont too sure what the true and false refer to. Taken from sample code
@@ -358,9 +392,18 @@ void loop()
             rlst =  ttgo->bma->readInterrupt();
         } while (!rlst);
 
-        //nnot working, don't know whyy?
+
         if (!toggle_screen && ttgo->bma->isTilt()) {
             low_energy();
+        }
+
+        if (ttgo->bma->isDoubleClick()) {
+          if(toggle_screen) { (*screen_tap[current_screen])(); }
+#ifdef debug
+Serial.println("double tap");
+#endif
+
+
         }
         
         ttgo->power->readIRQ();
