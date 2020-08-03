@@ -4,6 +4,7 @@
 #include "esp_wifi.h"
 #include <WiFi.h>
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
 
 // Color definitions stolen from Adafruit
 #define BLACK 0x0000
@@ -30,8 +31,12 @@ String url= "/data/2.5/onecall?lat=51.45452&lon=-2.5879&exclude=current,minutely
 const char * host = "api.openweathermap.org";
 const int port = 80;
 
+//steps options
+String aio_url = "http://io.adafruit.com/api/v2/ben_ev/feeds/steps/data";
+int last_posted = 0;
+
 //set up different screens
-const int num_screens = 5;
+const int num_screens = 6;
 int screen = 0;
 int current_screen = 0;
 
@@ -87,6 +92,10 @@ int tap_nothing() {
 
 int tap_weather(){
   get_forecast();
+}
+
+int tap_post_steps(){
+  post_steps();
 }
 
 int tap_steps(){
@@ -158,6 +167,18 @@ int screen5_static() {
         ttgo->tft->setTextColor(CYAN, BLACK);
         ttgo->tft->drawString("tap to reset steps", 22, 110, 4);
 }
+
+int screen6_static() {
+        ttgo->tft->fillScreen(BLACK);
+          //update step counter only when the screen is refreshed
+        ttgo->tft->setTextColor(GREEN, BLACK);
+        snprintf(buf, sizeof(buf), "Steps: %u", ttgo->bma->getCounter());
+        ttgo->tft->drawString(buf, 22, 60, 4);
+        ttgo->tft->setTextColor(CYAN, BLACK);
+        ttgo->tft->drawString("tap to post steps", 22, 110, 4);
+        snprintf(buf, sizeof(buf), "last posted: %u", last_posted);
+        ttgo->tft->drawString(buf, 50, 135, 4); 
+}
 //end screens
 
 
@@ -188,6 +209,34 @@ int connectToWiFi(const char * ssid, const char * pwd)
   Serial.println(WiFi.localIP());
 #endif
   return 0;
+}
+
+void post_steps() {
+  setCpuFrequencyMhz(80);
+  if (connectToWiFi(networkName, networkPswd) == 2) {setCpuFrequencyMhz(10); WiFi.mode(WIFI_OFF); return;  } //end the function if can't connect to wifi
+
+  HTTPClient http;
+      
+  // Your Domain name with URL path or IP address with path
+  http.begin(aio_url);
+
+  // If you need an HTTP request with a content type: application/json, use the following:
+  http.addHeader("X-AIO-Key", AIOKey);
+  http.addHeader("Content-Type", "application/json");
+  int httpResponseCode = http.POST("{\"value\":\"" + String(ttgo->bma->getCounter()) +"\"}");
+ 
+  
+  last_posted = millis();
+
+  // Free resources
+  http.end();
+
+  
+   
+   WiFi.mode(WIFI_OFF); 
+
+   setCpuFrequencyMhz(10); 
+   return;
 }
 
 void get_forecast() {
@@ -321,18 +370,21 @@ void setup()
     screen_dynamic[2] = main_clock_dynamic;
     screen_dynamic[3] = main_clock_dynamic;
     screen_dynamic[4] = main_clock_dynamic;
+    screen_dynamic[5] = main_clock_dynamic;
 
     screen_static[0] = screen1_static;
     screen_static[1] = screen2_static;
     screen_static[2] = screen3_static;
     screen_static[3] = screen4_static;
     screen_static[4] = screen5_static;
+    screen_static[5] = screen6_static;
 
     screen_tap[0] = tap_nothing;
     screen_tap[1] = tap_nothing;
     screen_tap[2] = tap_nothing;
     screen_tap[3] = tap_weather;
     screen_tap[4] = tap_steps;
+    screen_tap[5] = tap_post_steps;
     //end set up screens
     
     ttgo = TTGOClass::getWatch();
@@ -343,7 +395,7 @@ void setup()
     ttgo->openBL();
     ttgo->bl->adjust(brightness);
 
-    ttgo->motor_begin();
+    //ttgo->motor_begin();
 
     pinMode(BMA423_INT1, INPUT);
 
@@ -389,7 +441,7 @@ void setup()
     last_on = millis();
 
     //let's just put this here for testing
-    //should maybe be wrapped in something for checking battery level / 
+    //should maybe be wrapped in something for checking battery level /
     get_forecast();
 
 }
