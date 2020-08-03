@@ -26,11 +26,12 @@ The BMA class has changed recently and is not versioned. Need to have the latest
 # Stuff implemented
 * tilt to turn on
 * multiple screens that you can switch with a touch (note, there's a delay in this, so you have to hold your finger on the screen. not ideal, but also OK and not on my list of things to fix short-term)
+* Step counter
+* Pushing step counter data to Adafruit IO
+* Fetching weather forecast from openweather.io
 
-# Stuff to be implemented
-* double tap detection
+# Stuff to be implemented (that may or may not ever be implemented)
 * saving data to SPIFFS
-* uploading data to online storage
 * inactivity detection (& buzz?)
 * time spent in different activities
 
